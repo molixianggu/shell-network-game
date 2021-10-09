@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+message GameStatus {
+  string name = 1;
+  repeated HostNode nones = 3;
+}
+
+message HostNode {
+  string name = 1;
+  string host = 2;
+  TreeSystem files = 3;
+}
+
+enum FileType {
+  dir = 0;
+  img = 1;
+  txt = 2;
+  exe = 3;
+  bin = 4;
+  enc = 5;
+}
+
+message TreeSystem {
+  string   name = 1;
+  FileType type = 2;
+  string   data = 3;
+  repeated TreeSystem sub = 4;
+  bool     readable = 5;
+  bool     writable = 6;
+  bool     executable = 7;
+  bool     visible = 8;
+}
+
+
+
