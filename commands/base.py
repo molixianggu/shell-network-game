@@ -4,16 +4,15 @@ import json
 import shlex
 import os
 import abc
-import sys
 
-import select
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter, NestedCompleter
-from rich.console import Console
 from typing import Union
 
 from commands.status import HostNode, TreeSystem
 from pb.game_status_pb2 import FileType
+from .vim import VFile
+from suplemon.main import App as SuplemonApp
 
 
 class ArgumentParser(argparse.ArgumentParser):
@@ -243,29 +242,32 @@ class HostnameCommand(Command):
         self.status.game.save()
 
 
-class ViCommand(Command):
-    name = "vi"
-    words = "vi"
+class VimCommand(Command):
+    class FileCompleter(WordCompleter):
 
-    args = ArgumentParser(prog="vi", usage="vi file.txt", description="写入文件", epilog="")
+        def get_completions(self, document, complete_event):
+            self.words = [
+                x.name for x in Command.status.file_sys.find(Command.status.path[1:]).sub if x.type == FileType.txt
+            ]
+            return super().get_completions(document, complete_event)
+
+    name = "vim"
+    words = {"vim": FileCompleter([])}
+
+    args = ArgumentParser(prog="vim", usage="vim file.txt", description="编辑文件", epilog="")
     args.add_argument("file", help="文件名")
 
     async def run(self, args: argparse.Namespace):
-        loop = asyncio.get_event_loop()
-        self.status.console.print("\033c输入要写入的文本, 按 Ctrl+Z 写入")
-        text = await loop.run_in_executor(None, self.read_text)
-        self.status.console.print(f"\033c向 \"{args.file}\" 写入以下内容?")
-        self.status.console.print("--" * 10)
-        self.status.console.print(text)
-        self.status.console.print("--" * 10)
-        self.status.console.print("确认 y/n ?", end="   ")
-        ok = self.status.console.input()
-        if not ok:
-            return
+        VFile.status = self.status
+        app = SuplemonApp([args.file])
 
-    @staticmethod
-    def read_text():
-        return sys.stdin.read()
+        if app.init():
+            modules = app.modules.modules
+            modules.get("hostname").hostname = self.status.host
+
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, app.run)
+            self.status.game.save()
 
 
 class RmCommand(Command):
@@ -377,7 +379,11 @@ async def shell(session, status):
 
             if not result:
                 continue
-            cmd, *args = shlex.split(result)
+            try:
+                cmd, *args = shlex.split(result)
+            except Exception as e:
+                status.console.print(f"[red]ERR[/] error: command format error: {e}")
+                continue
             c = Command.commands.get(cmd, MissCommand)
             if c.args is None:
                 c.args = ArgumentParser()
@@ -393,5 +399,7 @@ async def shell(session, status):
                 break
             except Exception as e:
                 status.console.print(f"[red]ERR[/] error: {e}")
+                import traceback
+                traceback.print_exc()
         except (EOFError, KeyboardInterrupt):
             return

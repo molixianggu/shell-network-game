@@ -6,3 +6,4 @@ textual-inputs
 fast-autocomplete
 protobuf
 suplemon
+windows-curses

@@ -23,6 +23,11 @@ class TreeSystem:
         self.data = data
         self.parent: Union[None, TreeSystem] = None
 
+        self.readable = False
+        self.writable = False
+        self.executable = False
+        self.visible = False
+
     def add(self, obj: 'TreeSystem'):
         self.sub.append(obj)
         obj.parent = self
@@ -51,12 +56,20 @@ class TreeSystem:
             name=self.name,
             type=self.type,
             data=self.data,
-            sub=[x.to_proto() for x in self.sub]
+            sub=[x.to_proto() for x in self.sub],
+            readable=self.readable,
+            writable=self.writable,
+            executable=self.executable,
+            visible=self.visible
         )
 
     @classmethod
     def load_proto(cls, pb: TreeSystemData) -> 'TreeSystem':
         tree = cls(pb.name, ex=pb.type, data=pb.data)
+        tree.readable = pb.readable
+        tree.writable = pb.writable
+        tree.executable = pb.executable
+        tree.visible = pb.visible
         [tree.add(cls.load_proto(x)) for x in pb.sub]
         return tree
 
@@ -64,13 +77,19 @@ class TreeSystem:
         return f"[{self.type}:{self.name}]"
 
     color_map = {
-        FileType.dir: "steel_blue1",
-        FileType.exe: "green",
-        FileType.enc: "red",
+        FileType.dir: ("steel_blue1", 0b10111),
+        FileType.exe: ("green", 0b10110),
+        FileType.enc: ("red", 0b10010),
     }
 
     def __str__(self):
-        return f"[{self.color_map.get(self.type, 'white')}]{self.name}[/]"
+        # v = self.readable << 4 | self.writable << 3 | \
+        #     self.executable << 2 | self.visible << 1 | \
+        #     self.type == FileType.dir
+        c, u = self.color_map.get(self.type, ('white', 0))
+        # if (v & u) != u:
+        #     return f"(x)[red]{self.name}[/]"
+        return f"[{c}]{self.name}[/]"
 
 
 class HostNode:
