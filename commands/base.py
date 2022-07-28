@@ -7,12 +7,15 @@ import abc
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter, NestedCompleter
-from typing import Union
+from typing import Union, Any
 
 from commands.status import HostNode, TreeSystem
 from pb.game_status_pb2 import FileType
 from .vim import VFile
 from suplemon.main import App as SuplemonApp
+from rich.panel import Panel
+
+from game.game_base import Game
 
 
 class ArgumentParser(argparse.ArgumentParser):
@@ -28,7 +31,7 @@ class Command(metaclass=abc.ABCMeta):
     status: HostNode = None
 
     args: argparse.ArgumentParser = None
-    commands = {}
+    commands: dict[Any, type['Command']] = {}
     name: str = ""
     words: Union[str, dict] = ""
 
@@ -47,6 +50,24 @@ class Command(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def run(self, args: argparse.Namespace):
         raise NotImplementedError()
+
+
+class HelpCommand(Command):
+    name = "help"
+    words = "help"
+
+    args = ArgumentParser(prog="help", usage="help", description="显示命令使用帮助", epilog="")
+
+    async def run(self, args: argparse.Namespace):
+        result = "\n".join(
+            f"    {com.name:<10} -- {com.args.description:{chr(12288)}<15}  {com.args.usage}"
+            for com in self.commands.values() if com.args is not None
+        )
+
+        self.status.console.print(Panel.fit(f'''
+命令列表
+{result}
+        '''))
 
 
 class MissCommand(Command):
@@ -355,6 +376,21 @@ class SshCommand(Command):
         session = PromptSession(f"ssh {args.host}")
         status = self.status.game.hosts.get(args.host)
         await shell(session, status)
+
+
+class GameCommand(Command):
+    name = "game"
+    words = {"game": WordCompleter(list(Game.games.keys()))}
+
+    args = ArgumentParser(prog="game", usage="game fk", description="选择小游戏", epilog="")
+    args.add_argument("name", help="小游戏名")
+
+    async def run(self, args: argparse.Namespace):
+        game = Game.games.get(args.name)
+        if game is None:
+            self.status.console.print(f"[red]ERR[/] game {args.name} not exists.")
+            return
+        await game(self.status).run()
 
 
 class ShellContinue(Exception):

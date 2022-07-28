@@ -1,9 +1,0 @@
-ipython
-textual~=0.1.12
-pyfiglet~=0.8.post1
-rich==10.12.0
-textual-inputs
-fast-autocomplete
-protobuf
-suplemon
-windows-curses
