@@ -1,15 +1,15 @@
-import rich
+
+import os
+import sys
 
 
-class Node:
-    pass
+print("文件安装中, 请稍后...")
 
+if sys.version_info < (3, 7, 0):
+    raise Exception("python version low.")
 
-class Player:
-    max_load_value = 100
-    max_memory_value = 128
-
-    def __init__(self):
-        self.lv = 0
-        self.load_value = self.max_load_value
-        self.memory_value = self.max_memory_value
+if 'win' in sys.platform:
+    os.system("cls")
+    os.system("title +nk-game")
+else:
+    os.system("clear")
