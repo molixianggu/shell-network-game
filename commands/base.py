@@ -5,14 +5,18 @@ import shlex
 import os
 import abc
 
+from typing import Union, Any
+
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter, NestedCompleter
-from typing import Union, Any
+from prompt_toolkit import shortcuts
+from prompt_toolkit.styles import Style
+
+from pyvim.editor import Editor
+from pyvim.io.base import EditorIO
 
 from commands.status import HostNode, TreeSystem
 from pb.game_status_pb2 import FileType
-from .vim import VFile
-from suplemon.main import App as SuplemonApp
 from rich.panel import Panel
 
 from game.game_base import Game
@@ -82,8 +86,22 @@ class ExitCommand(Command):
     name = "exit"
     words = "exit"
 
+    dialog_style = Style.from_dict({
+        'dialog': 'bg:#000000',
+        'dialog frame.label': 'bg:#ffffff #000000',
+        'dialog.body': 'bg:#88ff88 #00ff00',
+        'dialog shadow': 'bg:#00aa00',
+    })
+
     async def run(self, args: argparse.Namespace):
-        raise ShellBreak()
+        result = await shortcuts.yes_no_dialog(
+            title='退出游戏',
+            text='确定要退出游戏吗 ?',
+            style=self.dialog_style,
+        ).run_async()
+        if result:
+            self.status.game.save()
+            raise ShellBreak()
 
 
 class PwdCommand(Command):
@@ -263,6 +281,56 @@ class HostnameCommand(Command):
         self.status.game.save()
 
 
+class VimOpenError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+
+class VFileIO(EditorIO):
+    """
+    虚拟文件接口
+    """
+
+    def __init__(self, status: HostNode):
+        self.status = status
+
+    def can_open_location(self, location):
+        return True
+
+    def exists(self, location):
+        self.status.console.print("exists", location)
+        p: TreeSystem = self.status.file_sys.find(self.status.path[1:]).index.get(location)
+        if p is None:
+            return False
+
+        self.status.console.print("exists", p)
+
+        if p.type != FileType.txt:
+            raise VimOpenError("文件不是文本类型")
+
+        return True
+
+    def read(self, location):
+        p: TreeSystem = self.status.file_sys.find(self.status.path[1:]).index.get(location)
+        if p is None:
+            return "", "utf-8"
+        if p.type == FileType.txt:
+            return p.data, "utf-8"
+        raise VimOpenError("读取文件失败")
+
+    def write(self, location, data, encoding='utf-8'):
+        d = self.status.file_sys.find(self.status.path[1:])
+        if location in d.index:
+            f = d.index.get(location)
+            if f.type != FileType.txt:
+                raise VimOpenError("文件不是文本类型")
+            f.data = data
+            f.type = FileType.txt
+        else:
+            d.add(TreeSystem(location, FileType.txt, data))
+        self.status.game.save()
+
+
 class VimCommand(Command):
     class FileCompleter(WordCompleter):
 
@@ -276,19 +344,29 @@ class VimCommand(Command):
     words = {"vim": FileCompleter([])}
 
     args = ArgumentParser(prog="vim", usage="vim file.txt", description="编辑文件", epilog="")
-    args.add_argument("file", help="文件名")
+    args.add_argument("-f", "--file", help="文件名", default=None, required=False)
 
     async def run(self, args: argparse.Namespace):
-        VFile.status = self.status
-        app = SuplemonApp([args.file])
+        editor = Editor()
+        editor.load_initial_files([args.file], in_tab_pages=True)
+        editor.io_backends = [VFileIO(self.status)]
 
-        if app.init():
-            modules = app.modules.modules
-            modules.get("hostname").hostname = self.status.host
+        def handle_action(buff):
+            """ When enter is pressed in the Vi command line. """
+            text = buff.text  # Remember: leave_command_mode resets the buffer.
 
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, app.run)
-            self.status.game.save()
+            # First leave command mode. We want to make sure that the working
+            # pane is focussed again before executing the command handlers.
+            editor.leave_command_mode(append_to_history=True)
+
+            # Execute command.
+            handle_command(editor, text)
+
+        editor.command_buffer.accept_handler = handle_action
+        try:
+            await editor.application.run_async()
+        except VimOpenError as e:
+            self.status.console.print(f"[red]ERR[/] open file err: {e.msg}")
 
 
 class RmCommand(Command):

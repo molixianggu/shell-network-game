@@ -80,6 +80,7 @@ class TreeSystem:
         FileType.dir: ("steel_blue1", 0b10111),
         FileType.exe: ("green", 0b10110),
         FileType.enc: ("red", 0b10010),
+        FileType.bin: ("yellow", 0b10110),
     }
 
     def __str__(self):
