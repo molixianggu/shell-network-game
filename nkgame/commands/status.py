@@ -1,3 +1,4 @@
+from pathlib import Path
 from rich.console import Console
 from enum import Enum
 from typing import Union
@@ -7,6 +8,7 @@ from nkgame.pb.game_status_pb2 import (
     HostNode as HostNodeData,
     FileType
 )
+import nkgame
 
 
 class NodeType(Enum):
@@ -109,18 +111,21 @@ class GameStatus:
 
     def __init__(self):
         self.hosts: dict[str, HostNode] = {}
+        self._path = Path(nkgame.__file__).parent / '001.save'
 
     def save(self):
         r = GameStatusData(
             name="001",
             nones=[HostNodeData(name=x.name, host=x.host, files=x.file_sys.to_proto()) for x in self.hosts.values()]
         ).SerializeToString()
-        with open("nkgame/001.save", "wb") as f:
+        
+        with open(self._path, "wb") as f:
             f.write(r)
 
     def load(self):
         r = GameStatusData()
-        with open("nkgame/001.save", "rb") as f:
+        
+        with open(self._path, "rb") as f:
             r.ParseFromString(f.read())
         for node in r.nones:
             n = HostNode(node.name, node.host, file=TreeSystem.load_proto(node.files), game=self)

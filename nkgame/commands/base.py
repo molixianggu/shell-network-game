@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+from pathlib import Path
 import shlex
 import os
 import abc
@@ -15,6 +16,7 @@ from prompt_toolkit.styles import Style
 from pyvim.editor import Editor
 from pyvim.io.base import EditorIO
 
+import nkgame
 from nkgame.commands.status import HostNode, TreeSystem
 from nkgame.pb.game_status_pb2 import FileType
 from rich.panel import Panel
@@ -248,7 +250,8 @@ class PlayCommand(Command):
         self.is_run = True
 
     async def run(self, args: argparse.Namespace):
-        with open(os.path.join("assets", args.name + ".json")) as f:
+        path = Path(nkgame.__file__).parent / 'assets' / f'{args.name}.json'
+        with open(path) as f:
             res = json.load(f)
         asyncio.create_task(self.stop(args.time))
         i = 0
