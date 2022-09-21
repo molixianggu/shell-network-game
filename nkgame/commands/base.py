@@ -1,10 +1,17 @@
+import sys
 import argparse
 import asyncio
 import json
 from pathlib import Path
 import shlex
-import os
 import abc
+
+try:
+    import termios
+    import tty
+except ImportError:
+    # TODO
+    pass
 
 from typing import Union, Any
 
@@ -15,11 +22,14 @@ from prompt_toolkit.styles import Style
 
 from pyvim.editor import Editor
 from pyvim.io.base import EditorIO
+from pyvim.commands.handler import handle_command
 
 import nkgame
 from nkgame.commands.status import HostNode, TreeSystem
 from nkgame.pb.game_status_pb2 import FileType
+from rich.live import Live
 from rich.panel import Panel
+from rich.text import Text
 
 from nkgame.game.game_base import Game
 
@@ -424,6 +434,56 @@ class PyEvalCommand(Command):
             else:
                 d.add(TreeSystem(args.file, FileType.bin, json.dumps(result)))
             self.status.game.save()
+
+
+class SelectCommand(Command):
+    name = "select"
+    words = "select"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.choices = [
+            "选项 A",
+            "选项 B",
+            "选项 C",
+        ]
+        self.value = 0
+        self.input_flag = 0
+
+    async def run(self, args: argparse.Namespace):
+        settings = termios.tcgetattr(sys.stdin)
+        tty.setcbreak(sys.stdin.fileno())
+
+        try:
+            with Live(await self.next_frame(''), refresh_per_second=10) as live:
+                while True:
+                    c = sys.stdin.read(1) if sys.stdin.readable() else ''
+                    live.update(await self.next_frame(c))
+        except ShellContinue:
+            self.status.console.print(f"选择了：[bold red]{self.choices[self.value]}[/] , :heart-emoji:")
+        finally:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+
+    async def next_frame(self, c):
+        # 处理双位 按键
+        if self.input_flag == 0 and c == '\x1b':
+            self.input_flag = 1
+        elif self.input_flag == 1 and c == '[':
+            self.input_flag = 2
+        elif self.input_flag == 2:
+            c = '^' + c
+            self.input_flag = 0
+
+        if c == '\n':
+            raise ShellContinue()
+        elif c == '^A':
+            self.value -= 1
+        elif c == '^B':
+            self.value += 1
+
+        self.value = self.value % len(self.choices)
+
+        return Text("\n".join([f"{'>' if i == self.value else ' '} {x}" for i, x in enumerate(self.choices)]))
 
 
 class SshCommand(Command):
