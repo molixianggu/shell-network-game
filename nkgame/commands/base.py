@@ -2,6 +2,7 @@ import sys
 import argparse
 import asyncio
 import json
+from asyncio import sleep
 from pathlib import Path
 import shlex
 import abc
@@ -457,8 +458,10 @@ class SelectCommand(Command):
         try:
             with Live(await self.next_frame(''), refresh_per_second=10) as live:
                 while True:
-                    c = sys.stdin.read(1) if sys.stdin.readable() else ''
+                    # c = sys.stdin.read(1) if sys.stdin.readable() else ''
+                    c = sys.stdin.read(1)
                     live.update(await self.next_frame(c))
+                    # await sleep(0.05)
         except ShellContinue:
             self.status.console.print(f"选择了：[bold red]{self.choices[self.value]}[/] , :heart-emoji:")
         finally:
