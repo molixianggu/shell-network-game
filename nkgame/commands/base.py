@@ -15,7 +15,7 @@ from prompt_toolkit.styles import Style
 from pyvim.editor import Editor
 from pyvim.io.base import EditorIO
 
-from commands.status import HostNode, TreeSystem
+from nkgame.commands.status import HostNode, TreeSystem
 from nkgame.pb.game_status_pb2 import FileType
 from rich.panel import Panel
 

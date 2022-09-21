@@ -6,6 +6,9 @@ authors = ["wei <molixianggu@gmail.com>"]
 license = "MIT"
 packages = [{include = "nkgame"}]
 
+[tool.poetry.scripts]
+nkgame = "nkgame.main:entrypoint"
+
 [tool.poetry.dependencies]
 python = "^3.8"
 textual = "^0.1.18"

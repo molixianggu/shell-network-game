@@ -1,4 +1,4 @@
-import cli
+from nkgame import cli
 
 import asyncio
 
@@ -27,6 +27,8 @@ async def main():
     with patch_stdout(True):
         await interactive_shell()
 
+def entrypoint():
+    asyncio.run(main())
 
 if __name__ == "__main__":
     asyncio.run(main())
