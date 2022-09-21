@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nk-game"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["wei <molixianggu@gmail.com>"]
 license = "MIT"
