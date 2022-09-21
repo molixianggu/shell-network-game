@@ -1,4 +1,4 @@
-import cli
+from nkgame import cli
 
 import asyncio
 
@@ -6,8 +6,8 @@ import pyfiglet
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.shortcuts import PromptSession
 
-from commands.base import shell
-from commands.status import GameStatus
+from nkgame.commands.base import shell
+from nkgame.commands.status import GameStatus
 
 
 async def interactive_shell():
@@ -27,6 +27,8 @@ async def main():
     with patch_stdout(True):
         await interactive_shell()
 
+def entrypoint():
+    asyncio.run(main())
 
 if __name__ == "__main__":
     asyncio.run(main())

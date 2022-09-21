@@ -4,6 +4,10 @@ version = "0.1.0"
 description = ""
 authors = ["wei <molixianggu@gmail.com>"]
 license = "MIT"
+packages = [{include = "nkgame", from = "."}]
+
+[tool.poetry.scripts]
+nkgame = "nkgame.main:entrypoint"
 
 [tool.poetry.dependencies]
 python = "^3.8"
