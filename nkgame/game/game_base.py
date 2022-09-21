@@ -10,10 +10,13 @@ from rich.console import RenderableType
 from rich.layout import Layout
 from rich.live import Live
 from rich.panel import Panel
+try:
+    import msvcrt
+except ImportError:
+    pass
+    # TODO
 
-import msvcrt
-
-from commands.status import HostNode
+from nkgame.commands.status import HostNode
 
 
 class Game(metaclass=abc.ABCMeta):
