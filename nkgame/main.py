@@ -6,7 +6,7 @@ import pyfiglet
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.shortcuts import PromptSession
 
-from nkgame.commands.base import shell
+from nkgame.commands import shell
 from nkgame.commands.status import GameStatus
 
 
