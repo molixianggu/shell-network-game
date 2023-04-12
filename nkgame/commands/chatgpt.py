@@ -3,6 +3,7 @@ import argparse
 import os
 import openai
 from rich.live import Live
+from rich.markdown import Markdown
 
 from .base import Command, ArgumentParser
 
@@ -25,9 +26,6 @@ class ChatGPT(Command):
         openai.api_key = args.key
 
         messages = []
-        #
-        # models = openai.Model.list()
-        # self.status.console.print(models)
 
         while True:
             try:
@@ -66,7 +64,7 @@ class ChatGPT(Command):
                 break
 
     async def next_frame(self, text):
-        return f"[green]{self.role}: [/] {text}"
+        return Markdown(f"[green]{self.role}: [/] {text}")
 
 
 name = "chatgpt"
