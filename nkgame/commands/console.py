@@ -86,13 +86,19 @@ class LsCommand(Command):
     words = "ls"
 
     args = ArgumentParser(prog="ls", usage="ls", description="显示目录下内容", epilog="")
+    args.add_argument("-l", "--long", help="显示详细信息", action="store_true")
 
     async def run(self, args: argparse.Namespace):
-        d = sorted(
-            self.status.file_sys.find(self.status.path[1:]).sub,
-            key=lambda x: (x.type, x.name)
-        )
-        self.status.console.print("     ".join(str(x) for x in d))
+        values = self.status.file_sys.find(self.status.path[1:]).sub
+        data = sorted(values, key=lambda x: (x.type, x.name))
+        if not args.long:
+            self.status.console.print("     ".join(str(x) for x in data))
+            return
+        for x in data:
+            self.status.console.print(
+                f"{x.type:<5}\t{x:<20}{len(x.data) if data else 0:<10}"
+                f"{x.readable and 'r' or '-'}{x.writable and 'w' or '-'}{x.executable and 'x' or '-'}"
+            )
 
 
 class CdCommand(Command):
@@ -149,13 +155,13 @@ class MkdirCommand(Command):
     async def run(self, args: argparse.Namespace):
         cur = self.status.file_sys.find(self.status.path[1:])
 
-        name = args.path
+        n = args.path
 
-        if name in cur.index:
+        if n in cur.index:
             self.status.console.print("[red]ERR[/] directory already exists.")
             return
 
-        cur.add(TreeSystem(name, FileType.dir))
+        cur.add(TreeSystem(n, FileType.dir))
         self.status.game.save()
 
 
@@ -343,6 +349,7 @@ class RmCommand(Command):
 
     args = ArgumentParser(prog="rm", usage="rm file.txt", description="删除文件", epilog="")
     args.add_argument("file", help="文件名")
+    args.add_argument("-r", "--recursive", help="递归删除", action="store_true")
 
     async def run(self, args: argparse.Namespace):
         ps = args.file.split("/")
@@ -354,8 +361,9 @@ class RmCommand(Command):
             self.status.console.print(f"[red]ERR[/] file {args.file} not exists.")
             return
         if tree.type == FileType.dir:
-            self.status.console.print(f"[red]ERR[/] {args.file} is dir.")
-            return
+            if not args.recursive:
+                self.status.console.print(f"[red]ERR[/] {args.file} is dir.")
+                return
         tree.parent.sub.remove(tree)
         tree.parent.index.pop(tree.name)
         self.status.game.save()
@@ -457,7 +465,7 @@ class SshCommand(Command):
 
     args = ArgumentParser(prog="ssh", usage="ssh 192.168.0.1", description="登录远程节点", epilog="")
     args.add_argument("host", help="远程地址")
-    args.add_argument("-c", "--create", dest="create", default="")
+    args.add_argument("-c", "--create", dest="create", help="创建节点", action="store_true")
 
     async def run(self, args: argparse.Namespace):
         if args.host not in self.status.game.hosts and args.create == "":
@@ -473,6 +481,9 @@ class SshCommand(Command):
             )
         session = PromptSession(f"ssh {args.host}")
         status = self.status.game.hosts.get(args.host)
+        if status is None:
+            self.status.console.print(f"[red]ERR[/] host [steel_blue]{args.host}[/] not exists.")
+            return
         from . import shell
         await shell(session, status)
 

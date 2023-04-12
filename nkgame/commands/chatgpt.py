@@ -9,7 +9,7 @@ from .base import Command, ArgumentParser
 
 
 class ChatGPT(Command):
-    name = "ChatGPT"
+    name = "chatgpt"
     words = "chatgpt"
 
     args = ArgumentParser(prog="chatgpt", usage="chatgpt", description="开始一个对话机器人", epilog="")
@@ -29,9 +29,14 @@ class ChatGPT(Command):
 
         while True:
             try:
-                query = self.status.console.input(f"[green]{self.status.name}: [/] ")
+                query = self.status.console.input(f"[green]{self.status.name}@{self.status.host}: [/] ")
                 if not query or query.lower() == "/q" or query.lower() == "exit":
                     break
+
+                if query.startswith("--"):
+                    messages.clear()
+                    self.status.console.print("--- 对话重置 ---", style="bold red")
+                    continue
 
                 messages.append({"role": "user", "content": query})
 

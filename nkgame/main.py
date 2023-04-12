@@ -17,7 +17,8 @@ async def interactive_shell():
     session = PromptSession("Shell")
     status = GameStatus()
     status.load()
-    localhost = status.hosts.get("localhost")
+
+    localhost = status.user0
     localhost.console.print(pyfiglet.figlet_format("NK Game XD"))
     await shell(session, localhost)
     localhost.console.print("Bye.")

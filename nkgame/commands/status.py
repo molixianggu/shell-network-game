@@ -1,7 +1,10 @@
+import re
+import json
 from pathlib import Path
 from rich.console import Console
 from enum import Enum
 from typing import Union
+from wcwidth import wcswidth
 from nkgame.pb.game_status_pb2 import (
     GameStatus as GameStatusData,
     TreeSystem as TreeSystemData,
@@ -86,13 +89,21 @@ class TreeSystem:
     }
 
     def __str__(self):
-        # v = self.readable << 4 | self.writable << 3 | \
-        #     self.executable << 2 | self.visible << 1 | \
-        #     self.type == FileType.dir
         c, u = self.color_map.get(self.type, ('white', 0))
-        # if (v & u) != u:
-        #     return f"(x)[red]{self.name}[/]"
         return f"[{c}]{self.name}[/]"
+
+    format_spec_regex = re.compile(r"(?P<placeholder>[^<^>]*)(?P<direction>[<>^])?(?P<length>\d*)")
+
+    def __format__(self, format_spec):
+        n = len(str(self)) - len(self.name)
+        m = wcswidth(self.name) - len(self.name)
+        f = self.format_spec_regex.match(format_spec)
+        if f is None:
+            return str(self)
+        if f.group('length') == '':
+            return str(self)
+        fs = f"{f.group('placeholder')}{f.group('direction')}{int(f.group('length')) + n - m}"
+        return f"{str(self):{fs}}"
 
 
 class HostNode:
@@ -106,30 +117,42 @@ class HostNode:
         self.file_sys: TreeSystem = file
         self.game: GameStatus = game
 
+        config = self.file_sys.index.get(".config")
+        if config is None:
+            config = TreeSystem(".config", FileType.bin, data="{}")
+            self.file_sys.add(config)
+        self.config = json.loads(config.data)
+
 
 class GameStatus:
 
     def __init__(self):
         self.hosts: dict[str, HostNode] = {}
         self._path = Path(nkgame.__file__).parent / '001.save'
+        self._user0 = None
 
     def save(self):
         r = GameStatusData(
             name="001",
             nones=[HostNodeData(name=x.name, host=x.host, files=x.file_sys.to_proto()) for x in self.hosts.values()]
         ).SerializeToString()
-        
+
         with open(self._path, "wb") as f:
             f.write(r)
 
     def load(self):
         r = GameStatusData()
-        
+
         with open(self._path, "rb") as f:
             r.ParseFromString(f.read())
         for node in r.nones:
             n = HostNode(node.name, node.host, file=TreeSystem.load_proto(node.files), game=self)
             self.hosts[node.host] = n
+        self._user0 = r.nones[0].host
+
+    @property
+    def user0(self):
+        return self.hosts[self._user0]
 
 
 if __name__ == '__main__':
