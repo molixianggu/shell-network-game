@@ -29,7 +29,7 @@ class ChatGPT(Command):
 
         while True:
             try:
-                query = self.status.console.input("[green]Query: [/] ")
+                query = self.status.console.input(f"[green]{self.status.name}: [/] ")
                 if not query or query.lower() == "/q" or query.lower() == "exit":
                     break
 
@@ -49,10 +49,10 @@ class ChatGPT(Command):
                             self.role = delta["role"]
                         if delta.get("content"):
                             result += delta["content"]
+                            messages.append({"role": self.role, "content": delta["content"]})
                         live.update(await self.next_frame(result))
             except openai.error.RateLimitError:
                 self.status.console.print("Rate limit or maximum monthly limit exceeded", style="bold red")
-                messages.pop()
                 break
 
             except (EOFError, KeyboardInterrupt):
@@ -64,7 +64,7 @@ class ChatGPT(Command):
                 break
 
     async def next_frame(self, text):
-        return Markdown(f"[green]{self.role}: [/] {text}")
+        return Markdown(f"*{self.role}*: {text}")
 
 
 name = "chatgpt"
